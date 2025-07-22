@@ -7,9 +7,9 @@ import { format } from "date-fns";
 
 const AppList = ({ apps, logs, loading }) => {
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [selectedLog, setSelectedLog] = useState(null);
   const [sortBy, setSortBy] = useState("LastMessageAt");
   const [sortOrder, setSortOrder] = useState("desc");
-
   const toggleRow = (appId) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(appId)) {
@@ -61,7 +61,130 @@ const AppList = ({ apps, logs, loading }) => {
         />
       )}
     </button>
-  );
+);
+
+  const LogDetailModal = ({ log, onClose }) => {
+    if (!log) return null;
+
+    const handleBackdropClick = (e) => {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    return (
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={handleBackdropClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={-1}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        >
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">Analysis Log Details</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors duration-150"
+            >
+              <ApperIcon name="X" size={20} />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Status and Timestamp */}
+            <div className="flex items-center justify-between">
+              <StatusBadge status={log.ChatAnalysisStatus} />
+              <span className="text-sm text-gray-500">
+                {format(new Date(log.CreatedAt), "MMM d, yyyy 'at' HH:mm")}
+              </span>
+            </div>
+
+            {/* Summary */}
+            {log.Summary && (
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Summary</h4>
+                <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                  {log.Summary}
+                </p>
+              </div>
+            )}
+
+            {/* Metrics Grid */}
+            <div>
+              <h4 className="font-medium text-gray-900 mb-4">Analysis Metrics</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <MetricCard
+                  icon="Heart"
+                  title="Sentiment Score"
+                  value={log.SentimentScore?.toFixed(2) || "N/A"}
+                  color={log.SentimentScore > 0.5 ? "green" : log.SentimentScore > 0 ? "orange" : "red"}
+                />
+                <MetricCard
+                  icon="Zap"
+                  title="Frustration Level"
+                  value={`${log.FrustrationLevel || 0}/5`}
+                  color={log.FrustrationLevel > 3 ? "red" : log.FrustrationLevel > 2 ? "orange" : "green"}
+                />
+                <MetricCard
+                  icon="Brain"
+                  title="Technical Complexity"
+                  value={`${log.TechnicalComplexity || 0}/5`}
+                  color="blue"
+                />
+                {log.ModelUsed && (
+                  <MetricCard
+                    icon="Bot"
+                    title="AI Model Used"
+                    value={log.ModelUsed}
+                    color="purple"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {log.ErrorMessage && (
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Error Details</h4>
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <ApperIcon name="AlertCircle" size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-red-700 text-sm leading-relaxed">{log.ErrorMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Additional Info */}
+            <div className="pt-4 border-t border-gray-200">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-900">Log ID:</span>
+                  <span className="text-gray-600 ml-2">{log.Id}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-900">App ID:</span>
+                  <span className="text-gray-600 ml-2">{log.AppId}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -203,13 +326,14 @@ const AppList = ({ apps, logs, loading }) => {
                           {appLogs.length === 0 ? (
                             <p className="text-gray-500 text-sm italic">No analysis logs available</p>
                           ) : (
-                            <div className="space-y-3 max-h-64 overflow-y-auto">
+<div className="space-y-3 max-h-64 overflow-y-auto">
                               {appLogs.map((log) => (
                                 <motion.div
                                   key={log.Id}
                                   initial={{ opacity: 0, y: 10 }}
                                   animate={{ opacity: 1, y: 0 }}
-                                  className="bg-gray-50 rounded-lg p-3 border"
+                                  className="bg-gray-50 rounded-lg p-3 border cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                                  onClick={() => setSelectedLog(log)}
                                 >
                                   <div className="flex items-start justify-between mb-2">
                                     <StatusBadge status={log.ChatAnalysisStatus} />
@@ -249,7 +373,16 @@ const AppList = ({ apps, logs, loading }) => {
             </motion.div>
           );
         })}
-      </div>
+</div>
+
+      <AnimatePresence>
+        {selectedLog && (
+          <LogDetailModal 
+            log={selectedLog} 
+            onClose={() => setSelectedLog(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
