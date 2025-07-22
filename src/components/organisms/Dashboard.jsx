@@ -107,13 +107,13 @@ const Dashboard = () => {
     );
   }
 
-  return (
+return (
     <div className="min-h-screen bg-gray-50">
       <Header 
         onSearch={setSearchTerm}
         searchPlaceholder="Search apps by name or user email..."
+        currentView="dashboard"
       />
-      
       <div className="p-6">
         <div className="flex gap-6">
           <FilterSidebar

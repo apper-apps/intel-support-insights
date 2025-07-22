@@ -128,6 +128,150 @@ export const getStatusSummary = async () => {
       healthyCount: totalApps - criticalCount - struggleCount
     };
   } catch (error) {
-    throw new Error("Failed to generate status summary");
+throw new Error("Failed to generate status summary");
+  }
+};
+
+// Trends analysis functions
+export const getTrendsData = async (startDate, endDate, statusFilter = []) => {
+  await delay(300);
+  
+  try {
+    let filteredLogs = [...appAILogsData];
+    
+    // Apply date filter
+    if (startDate || endDate) {
+      filteredLogs = filteredLogs.filter(log => {
+        const logDate = new Date(log.CreatedAt);
+        if (startDate && logDate < startDate) return false;
+        if (endDate && logDate > endDate) return false;
+        return true;
+      });
+    }
+    
+    // Apply status filter
+    if (statusFilter.length > 0) {
+      filteredLogs = filteredLogs.filter(log => 
+        statusFilter.includes(log.ChatAnalysisStatus)
+      );
+    }
+    
+    return filteredLogs.sort((a, b) => new Date(a.CreatedAt) - new Date(b.CreatedAt));
+  } catch (error) {
+    throw new Error("Failed to load trends data");
+  }
+};
+
+export const getDateRangeOptions = () => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  return {
+    "7d": {
+      label: "Last 7 days",
+      startDate: new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000),
+      endDate: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+    },
+    "30d": {
+      label: "Last 30 days", 
+      startDate: new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000),
+      endDate: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+    },
+    "90d": {
+      label: "Last 90 days",
+      startDate: new Date(today.getTime() - 89 * 24 * 60 * 60 * 1000), 
+      endDate: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+    }
+  };
+};
+
+export const aggregateTrendsData = (logs, groupBy = "day") => {
+  const groups = {};
+  
+  logs.forEach(log => {
+    const date = new Date(log.CreatedAt);
+    let key;
+    
+    switch (groupBy) {
+      case "day":
+        key = date.toISOString().split('T')[0];
+        break;
+      case "week":
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toISOString().split('T')[0];
+        break;
+      case "month":
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        break;
+      default:
+        key = date.toISOString().split('T')[0];
+    }
+    
+    if (!groups[key]) {
+      groups[key] = {
+        date: key,
+        sentimentScores: [],
+        frustrationLevels: [],
+        count: 0,
+        statuses: {}
+      };
+    }
+    
+    groups[key].sentimentScores.push(log.SentimentScore);
+    groups[key].frustrationLevels.push(log.FrustrationLevel);
+    groups[key].count++;
+    
+    const status = log.ChatAnalysisStatus;
+    groups[key].statuses[status] = (groups[key].statuses[status] || 0) + 1;
+  });
+  
+  // Calculate averages and format data
+  return Object.values(groups).map(group => ({
+    date: group.date,
+    avgSentiment: group.sentimentScores.reduce((a, b) => a + b, 0) / group.sentimentScores.length,
+    avgFrustration: group.frustrationLevels.reduce((a, b) => a + b, 0) / group.frustrationLevels.length,
+    count: group.count,
+    statuses: group.statuses
+  })).sort((a, b) => new Date(a.date) - new Date(b.date));
+};
+
+export const getUniqueStatuses = () => {
+  const statuses = [...new Set(appAILogsData.map(log => log.ChatAnalysisStatus))];
+  return statuses.sort();
+};
+
+export const getTrendsSummary = async (startDate, endDate, statusFilter = []) => {
+  await delay(200);
+  
+  try {
+    const logs = await getTrendsData(startDate, endDate, statusFilter);
+    
+    if (logs.length === 0) {
+      return {
+        totalInteractions: 0,
+        avgSentiment: 0,
+        avgFrustration: 0,
+        statusDistribution: {}
+      };
+    }
+    
+    const totalSentiment = logs.reduce((sum, log) => sum + log.SentimentScore, 0);
+    const totalFrustration = logs.reduce((sum, log) => sum + log.FrustrationLevel, 0);
+    
+    const statusCounts = {};
+    logs.forEach(log => {
+      const status = log.ChatAnalysisStatus;
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    
+    return {
+      totalInteractions: logs.length,
+      avgSentiment: totalSentiment / logs.length,
+      avgFrustration: totalFrustration / logs.length,
+      statusDistribution: statusCounts
+    };
+  } catch (error) {
+    throw new Error("Failed to generate trends summary");
   }
 };
