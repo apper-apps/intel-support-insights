@@ -52,11 +52,11 @@ select:focus,
 textarea:focus {
   outline: none;
   ring: 2px;
-  ring-color: #2563EB;
+  ring-color: #059669;
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #2563EB, #7C3AED);
+  background: linear-gradient(135deg, #059669, #0D9488);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
