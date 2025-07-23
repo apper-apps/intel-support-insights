@@ -5,11 +5,14 @@ import MetricCard from "@/components/molecules/MetricCard";
 import ApperIcon from "@/components/ApperIcon";
 import { format } from "date-fns";
 
-const AppList = ({ apps, logs, loading }) => {
+const AppList = ({ apps, logs, loading, showPagination = false }) => {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [selectedLog, setSelectedLog] = useState(null);
   const [sortBy, setSortBy] = useState("LastMessageAt");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [appsPerPage] = useState(10);
+
   const toggleRow = (appId) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(appId)) {
@@ -42,10 +45,87 @@ const AppList = ({ apps, logs, loading }) => {
       return aValue > bValue ? 1 : -1;
     }
     return aValue < bValue ? 1 : -1;
-  });
+});
+
+  // Pagination logic
+  const totalPages = Math.ceil(sortedApps.length / appsPerPage);
+  const startIndex = (currentPage - 1) * appsPerPage;
+  const endIndex = startIndex + appsPerPage;
+  const paginatedApps = showPagination ? sortedApps.slice(startIndex, endIndex) : sortedApps;
 
   const getAppLogs = (appId) => {
     return logs.filter(log => log.AppId === appId);
+  };
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const handlePageClick = (page) => {
+    setCurrentPage(page);
+  };
+
+  const renderPaginationControls = () => {
+    if (!showPagination || totalPages <= 1) return null;
+
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center gap-2 text-sm text-gray-700">
+          <span>
+            Showing {startIndex + 1} to {Math.min(endIndex, sortedApps.length)} of {sortedApps.length} apps
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ApperIcon name="ChevronLeft" size={16} />
+          </button>
+          
+          {pages.map(page => (
+            <button
+              key={page}
+              onClick={() => handlePageClick(page)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                page === currentPage
+                  ? 'bg-primary text-white'
+                  : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {page}
+            </button>
+          ))}
+          
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ApperIcon name="ChevronRight" size={16} />
+          </button>
+        </div>
+      </div>
+    );
   };
 
   const SortButton = ({ field, children }) => (
@@ -202,19 +282,26 @@ const AppList = ({ apps, logs, loading }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+<div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
       <div className="border-b border-gray-200 bg-surface p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Apps Overview</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            {showPagination ? "User's Apps" : "Apps Overview"}
+          </h2>
           <div className="text-sm text-gray-500">
-            {apps.length} total apps
+            {showPagination ? (
+              `${sortedApps.length} total apps • Page ${currentPage} of ${totalPages}`
+            ) : (
+              `${apps.length} total apps`
+            )}
           </div>
         </div>
         
         <div className="grid grid-cols-7 gap-4 text-sm">
           <SortButton field="AppName">App Name</SortButton>
-          <div>User</div>
-          <div>Category</div>
+          {!showPagination && <div>User</div>}
+          {showPagination && <div>Category</div>}
+          {!showPagination && <div>Category</div>}
           <SortButton field="LastChatAnalysisStatus">Status</SortButton>
           <SortButton field="TotalMessages">Messages</SortButton>
           <SortButton field="LastMessageAt">Last Activity</SortButton>
@@ -222,8 +309,8 @@ const AppList = ({ apps, logs, loading }) => {
         </div>
       </div>
 
-      <div className="divide-y divide-gray-200">
-        {sortedApps.map((app) => {
+<div className="divide-y divide-gray-200">
+        {paginatedApps.map((app) => {
           const appLogs = getAppLogs(app.Id);
           const isExpanded = expandedRows.has(app.Id);
           const latestLog = appLogs[0]; // Assuming logs are sorted by date
@@ -239,16 +326,18 @@ const AppList = ({ apps, logs, loading }) => {
                 <div className="grid grid-cols-7 gap-4 items-center text-sm">
                   <div className="font-medium text-gray-900">
                     {app.AppName}
-                  </div>
+</div>
                   
-                  <div className="space-y-1">
-                    <div className="font-medium text-gray-900">
-                      {app.User.Name}
+                  {!showPagination && (
+                    <div className="space-y-1">
+                      <div className="font-medium text-gray-900">
+                        {app.User.Name}
+                      </div>
+                      <div className="text-gray-500 text-xs">
+                        {app.User.Email}
+                      </div>
                     </div>
-                    <div className="text-gray-500 text-xs">
-                      {app.User.Email}
-                    </div>
-                  </div>
+                  )}
                   
                   <div className="text-gray-600">
                     {app.AppCategory}
@@ -259,7 +348,6 @@ const AppList = ({ apps, logs, loading }) => {
                       </div>
                     )}
                   </div>
-                  
                   <div>
                     <StatusBadge status={app.LastChatAnalysisStatus} />
                   </div>
@@ -374,6 +462,8 @@ const AppList = ({ apps, logs, loading }) => {
           );
         })}
 </div>
+
+      {renderPaginationControls()}
 
       <AnimatePresence>
         {selectedLog && (
