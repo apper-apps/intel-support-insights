@@ -93,3 +93,38 @@ textarea:focus {
 .status-special {
   @apply bg-gray-100 text-gray-800;
 }
+
+/* Sidebar Styles */
+.sidebar-mobile {
+  width: 280px;
+  transition: transform 0.3s ease-in-out;
+}
+
+@media (min-width: 1024px) {
+  .sidebar-mobile {
+    transform: translateX(0) !important;
+    position: relative;
+    z-index: auto;
+  }
+}
+
+/* Main content area adjustments */
+@media (max-width: 1023px) {
+  main {
+    margin-left: 0 !important;
+  }
+}
+
+/* Mobile header spacing for menu button */
+@media (max-width: 1023px) {
+  header {
+    padding-left: 4rem !important;
+  }
+}
+
+/* Responsive search bar */
+@media (max-width: 640px) {
+  .w-80 {
+    width: 200px;
+  }
+}
